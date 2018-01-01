@@ -7,7 +7,7 @@ Allows you to create aggregations of insight logs and aggregations of aggregatio
 * power usage: differencing the meter readings
 * average temperture: add multiple temperature logs to 1 aggregation
 
-##Settings
+## Settings
 ### apiToken
 The bearer token needed for accessing logs of other apps.
 ### Name
