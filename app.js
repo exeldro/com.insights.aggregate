@@ -90,8 +90,7 @@ class AggregatedInsightsApp extends Homey.App {
 			return;
 		}
 		if(!aggregations){
-			this.log('Nothing to calculate.');
-			return;
+			aggregations = [];
 		}
 		this.calculating = aggregations.length;
 		this.log('calculateAggregations');
