@@ -1,0 +1,142 @@
+
+<!doctype html>
+<html>
+    <head>
+
+        <!-- The '/homey.js' script must be included in your settings view to work -->
+        <script type="text/javascript" src="/homey.js" data-origin="settings"></script>
+
+    </head>
+    <body>
+        <fieldset>
+            <legend>API</legend>
+            <div class="field row">
+              <label for="apiToken">API Token <a style="font-size:10px" href="https://my.athom.com" target="_blank">(get it here)</a></label>
+              <input id="apiToken" type="text" placeholder="paste token" style="width:260px">
+            </div>
+            <button id="save" class="right">Save api token</button>
+        </fieldset>
+
+        <table id="aggregationTable"><tr><th>Name</th><th>Label</th><th>Units</th><th>Decimals</th><th>Logs</th><th>Start</th><th>Method</th><th>Period</th><th>Position</th><th></th></tr>
+          <tr>
+            <td><input id="aggregationName" name="aggregationName" type="text" placeholder="Name"></td>
+            <td><input id="aggregationLabel" name="aggregationLabel" type="text" placeholder="Label"></td>
+            <td><input id="aggregationUnits" name="aggregationUnits" type="text" placeholder="Units" size="4"></td>
+            <td><input id="aggregationDecimals" name="aggregationDecimals" type="number" placeholder="" min="0" max="10"></td>
+            <td><select id="aggregationLog" name="aggregationLog"></select></td>
+            <td><input id="aggregationStart" name="aggregationStart" type="text" placeholder="YYYY-MM-DD"></td>
+            <td><select id="aggregationMethod" name="aggregationMethod"><option>Sum</option><option selected>Avarage</option><option>Difference</option><option>Max</option><option>Min</option></select></td>
+            <td><select id="aggregationPeriod" name="aggregationPeriod"><option>Hour</option><option>Day</option><option>Week</option><option>Month</option><option>Year</option></select></td>
+            <td><select id="aggregationPosition" name="aggregationPosition"><option selected>Start</option><option>Middle</option><option>End</option></select></td>
+            <td><button id="add" name="add" onclick='addAggregation()'>Add</button></td>
+          </tr>
+        </table>
+        
+
+        <script type="text/javascript">
+    var h;
+    var aggregations;
+    function onHomeyReady(Homey) {
+      h = Homey;
+      Homey.ready()
+      Homey.get('apiToken', function(err, apiToken) {
+        if (apiToken) {
+          document.getElementById('apiToken').value = apiToken
+        }
+      });
+      document.getElementById('save').addEventListener('click', function(e) {
+        Homey.set('apiToken', document.getElementById('apiToken').value, function( err ){
+          if( err ) return Homey.alert( err );
+        });
+      });
+      Homey.get('logs', function(err, logs) {
+        if (logs) {
+          var select = document.getElementById("aggregationLog");
+          logs.forEach(log => {
+            var option = document.createElement('option');
+            option.text = log.name;
+            option.value = log.id;
+            select.add(option, 0);
+          });
+        }
+      });
+      Homey.get('aggregations', function(err, agg) {
+        if (agg) {
+          aggregations = agg;
+          aggregations.forEach(aggregation => addAggregationToTable(aggregation), this);
+        }else{
+          aggregations = [];
+        }
+      });
+
+    }
+    function addAggregationToTable(aggregation){
+      var table = document.getElementById("aggregationTable");
+      table.innerHTML = table.innerHTML +"<tr><td>" + aggregation.name + "</td><td>" + aggregation.label + "</td><td>" + aggregation.units + "</td><td>" + aggregation.decimals + "</td><td>" + aggregation.logs.map(l=>l.label) + "</td><td>" + aggregation.next + "</td><td>" + aggregation.method + "</td><td>" + aggregation.period + "</td><td>" + aggregation.position + "</td><td><button onclick='deleteAggregation(\""+aggregation.name+"\")'>Delete</button></td></tr>";
+    }
+    function deleteAggregation(aggregationName){
+      
+            aggregations.forEach((a,i,arr) => {
+              if(a.name == aggregationName){
+                arr.splice(i, 1);
+                h.alert('refresh page to see the delete');
+                //TODO remove row from html table
+              }
+            });
+            h.set('deleteAggregation', aggregationName, function( err ){
+              if( err ) return h.alert( err );
+            });
+    }
+    function addAggregation(){
+          if(document.getElementById('aggregationName').value){
+            var aggregationIndex = -1;
+            aggregations.forEach((a,i) => {
+              if(a.name == document.getElementById('aggregationName').value){
+                aggregationIndex = i;
+              }
+            });
+            var log = {
+                  id: document.getElementById('aggregationLog').value,
+                  label: document.getElementById('aggregationLog').options[document.getElementById('aggregationLog').selectedIndex].text
+                };
+            if(aggregationIndex == -1){
+              var aggregation = {
+                logs: [log],
+                name: document.getElementById('aggregationName').value,
+                label: document.getElementById('aggregationLabel').value,
+                units: document.getElementById('aggregationUnits').value,
+                decimals: Number(document.getElementById('aggregationDecimals').value),
+                next: new Date(document.getElementById('aggregationStart').value),
+                start: new Date(document.getElementById('aggregationStart').value),
+                method: document.getElementById('aggregationMethod').value,
+                period: document.getElementById('aggregationPeriod').value,
+                position: document.getElementById('aggregationPosition').value
+              };
+              h.set('addAggregation', aggregation, function( err ){
+                if( err ) return h.alert( err );
+              });
+              aggregations.push(aggregation);
+              addAggregationToTable(aggregation);
+            }else{
+              var logIndex = -1;
+					    aggregations[aggregationIndex].logs.forEach((a,i) => {
+						    if(a.id == log.id){
+							    logIndex = i;
+						    }
+					    });
+					    if(logIndex == -1){
+						    aggregations[aggregationIndex].logs.push(addLog);
+					    }else{
+						    aggregations[aggregationIndex].logs[logIndex] = addLog;
+					    }
+              h.set('addAggregation', aggregations[aggregationIndex], function( err ){
+                if( err ) return h.alert( err );
+              });
+              h.alert('refresh page to see the added log');
+            }
+          }
+    }
+        </script>
+
+    </body>
+</html>

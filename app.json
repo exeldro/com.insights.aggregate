@@ -1,0 +1,36 @@
+{
+    "id": "com.insights.aggregate",
+    "sdk": 2,
+    "name": {
+        "en": "Aggregated Insights"
+    },
+    "description": {
+        "en": "Adds support for aggregated insights"
+    },
+    "images": { "large": "assets/images/large.png", "small": "assets/images/small.png" },
+    "category": "tools",
+    "version": "0.0.1",
+    "compatibility": ">=1.5.0",
+    "author": {
+        "name": "Bas van Meel",
+        "email": "exelsor@hotmail.com"
+    },
+	"contributors": {
+        "developers": [
+            {
+                "name": "Bas van Meel",
+				"email": "exelsor@hotmail.com"
+            }
+        ]
+    },
+	"contributing": {
+        "donate": {
+            "paypal": {
+                "username": "basvm"
+            }
+        }
+    },
+    "bugs": {
+        "url": "https://github.com/exeldro/com.insights.aggregate/issues"
+    }
+}
