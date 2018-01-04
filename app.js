@@ -251,6 +251,9 @@ class AggregatedInsightsApp extends Homey.App {
 					aggregations[aggregationIndex].next = end;
 					Homey.ManagerSettings.set('aggregations', aggregations);
 					this.calculating--;
+				}).catch(err => {
+					this.log(err);
+					this.calculating = 0;
 				});
 			}else{
 				this.calculating--;
