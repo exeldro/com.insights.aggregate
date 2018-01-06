@@ -28,7 +28,7 @@ The start date and time of the next period to be calculated
 Aggregations are made per hour, day, week, month or year
 ### Position
 Position in the period the aggregation is logged.
-If you are using average aggregations of aggregations you should use Start.
+Usually the same position as the insight(s) you are aggregation from.
 ### Method
 The aggregation method.
 * Sum of all values in the period
