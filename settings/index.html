@@ -17,14 +17,14 @@
             <button id="save" class="right">Save api token</button>
         </fieldset>
 
-        <table id="aggregationTable"><tr><th>Name</th><th>Label</th><th>Units</th><th>Decimals</th><th>Logs</th><th>Start</th><th>Method</th><th>Period</th><th>Position</th><th></th></tr>
+        <table id="aggregationTable"><tr><th>Name</th><th>Label</th><th>Units</th><th>Decimals</th><th>Logs</th><th>Start</th><th>Next</th><th>Method</th><th>Period</th><th>Position</th><th></th></tr>
           <tr>
             <td><input id="aggregationName" name="aggregationName" type="text" placeholder="Name"></td>
             <td><input id="aggregationLabel" name="aggregationLabel" type="text" placeholder="Label"></td>
             <td><input id="aggregationUnits" name="aggregationUnits" type="text" placeholder="Units" size="4"></td>
             <td><input id="aggregationDecimals" name="aggregationDecimals" type="number" placeholder="" min="0" max="10"></td>
             <td><select id="aggregationLog" name="aggregationLog"></select></td>
-            <td><input id="aggregationStart" name="aggregationStart" type="text" placeholder="YYYY-MM-DD"></td>
+            <td colspan="2"><input id="aggregationStart" name="aggregationStart" type="text" placeholder="YYYY-MM-DD"></td>
             <td><select id="aggregationMethod" name="aggregationMethod"><option>Sum</option><option selected>Avarage</option><option>Difference</option><option>Max</option><option>Min</option></select></td>
             <td><select id="aggregationPeriod" name="aggregationPeriod"><option>Hour</option><option>Day</option><option>Week</option><option>Month</option><option>Year</option></select></td>
             <td><select id="aggregationPosition" name="aggregationPosition"><option selected>Start</option><option>End</option></select></td>
@@ -72,7 +72,7 @@
     }
     function addAggregationToTable(aggregation){
       var table = document.getElementById("aggregationTable");
-      table.innerHTML = table.innerHTML +"<tr><td>" + aggregation.name + "</td><td>" + aggregation.label + "</td><td>" + aggregation.units + "</td><td>" + aggregation.decimals + "</td><td>" + aggregation.logs.map(l=>l.label) + "</td><td>" + aggregation.next + "</td><td>" + aggregation.method + "</td><td>" + aggregation.period + "</td><td>" + aggregation.position + "</td><td><button onclick='deleteAggregation(\""+aggregation.name+"\")'>Delete</button></td></tr>";
+      table.innerHTML = table.innerHTML +"<tr><td>" + aggregation.name + "</td><td>" + aggregation.label + "</td><td>" + aggregation.units + "</td><td>" + aggregation.decimals + "</td><td>" + aggregation.logs.map(l=>l.label) + "</td><td>" + aggregation.start + "</td><td>" + aggregation.next + "</td><td>" + aggregation.method + "</td><td>" + aggregation.period + "</td><td>" + aggregation.position + "</td><td><button onclick='recalcAggregation(\""+aggregation.name+"\")'>Recalc</button><button onclick='deleteAggregation(\""+aggregation.name+"\")'>Delete</button></td></tr>";
     }
     function deleteAggregation(aggregationName){
       
@@ -86,6 +86,11 @@
             h.set('deleteAggregation', aggregationName, function( err ){
               if( err ) return h.alert( err );
             });
+    }
+    function recalcAggregation(aggregationName){
+      h.set('recalcAggregation', aggregationName, function( err ){
+        if( err ) return h.alert( err );
+      });
     }
     function addAggregation(){
           if(document.getElementById('aggregationName').value){

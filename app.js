@@ -132,6 +132,27 @@ class AggregatedInsightsApp extends Homey.App {
 				Homey.ManagerSettings.set('aggregations', aggregations);
 				Homey.ManagerSettings.set('deleteAggregation',null);
 				this.calculating--;
+			}else if(aggregation.name == Homey.ManagerSettings.get('recalcAggregation') && aggregation.start){
+				Homey.ManagerInsights.getLog(aggregation.name, function(err, logs) {
+					if (err) {
+						aggregations[aggregationIndex].next = aggregations[aggregationIndex].start;
+						aggregations[aggregationIndex].nextEnd = null;
+						Homey.ManagerSettings.set('aggregations', aggregations);
+						Homey.ManagerSettings.set('recalcAggregation',null);
+					}else{
+						Homey.ManagerInsights.deleteLog(logs, function callback(err, logs) {
+							if (err) {
+								console.error(err);
+							}else{
+								aggregations[aggregationIndex].next = aggregations[aggregationIndex].start;
+								aggregations[aggregationIndex].nextEnd = null;
+								Homey.ManagerSettings.set('aggregations', aggregations);
+								Homey.ManagerSettings.set('recalcAggregation',null);
+							}
+						});
+					}
+				});
+				this.calculating--;	
 			}else if((!aggregation.next || this.addPeriod(aggregation.next, aggregation.period) < new Date()) && (!aggregation.nextEnd || new Date(aggregation.nextEnd) < new Date())){
 				var start;
 				if(aggregation.next){
@@ -300,7 +321,7 @@ class AggregatedInsightsApp extends Homey.App {
 										units: aggregation.units
 									}, function callback(err, logs) {
 										if (err) {
-											this.log(err);
+											console.error(err);
 										}else{
 											logs.createEntry( logValue, logDate, function(err, success) {
 												if (err) console.error(err);
