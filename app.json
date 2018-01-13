@@ -32,5 +32,8 @@
     },
     "bugs": {
         "url": "https://github.com/exeldro/com.insights.aggregate/issues"
-    }
+    },
+    "permissions": [
+        "homey:manager:api"
+    ]
 }

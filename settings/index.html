@@ -8,15 +8,6 @@
 
     </head>
     <body>
-        <fieldset>
-            <legend>API</legend>
-            <div class="field row">
-              <label for="apiToken">API Token <a style="font-size:10px" href="https://my.athom.com" target="_blank">(get it here)</a></label>
-              <input id="apiToken" type="text" placeholder="paste token" style="width:260px">
-            </div>
-            <button id="save" class="right">Save api token</button>
-        </fieldset>
-
         <table id="aggregationTable"><tr><th>Name</th><th>Label</th><th>Units</th><th>Decimals</th><th>Logs</th><th>Start</th><th>Next</th><th>Method</th><th>Period</th><th>Position</th><th></th></tr>
           <tr>
             <td><input id="aggregationName" name="aggregationName" type="text" placeholder="Name"></td>
@@ -39,16 +30,6 @@
     function onHomeyReady(Homey) {
       h = Homey;
       Homey.ready()
-      Homey.get('apiToken', function(err, apiToken) {
-        if (apiToken) {
-          document.getElementById('apiToken').value = apiToken
-        }
-      });
-      document.getElementById('save').addEventListener('click', function(e) {
-        Homey.set('apiToken', document.getElementById('apiToken').value, function( err ){
-          if( err ) return Homey.alert( err );
-        });
-      });
       Homey.get('logs', function(err, logs) {
         if (logs) {
           var select = document.getElementById("aggregationLog");

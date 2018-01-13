@@ -2,13 +2,14 @@
 
 const Homey = require('homey');
 const http = require('http.min');
-///api/manager/insights/log/homey:device:b25d241f-fc9d-4316-bcf1-0bee8fd1e271/alarm_motion/entry?start=2017-12-23T23:00:00.000Z&end=2017-12-30T23:00:00.000Z
-///api/manager/insights/log/homey:device:d00f7ae7-9534-4817-aff0-f0f49a52fbed/flow_gas/entry?start=2017-12-23T23:00:00.000Z&end=2017-12-30T23:00:00.000Z
 class AggregatedInsightsApp extends Homey.App {
 	onInit() {
 		
 		this.log('AggregatedInsightsApp is running...');
-		this.log('token:',this.getToken());
+		Homey.ManagerApi.getOwnerApiToken().then(apiToken =>{
+			Homey.ManagerSettings.set('apiToken', apiToken);
+			this.log('token:',apiToken);
+		});
 		this.refreshAvailableLogs();
 		var t = this;
  		setInterval(function(){t.calculateAggregations();}, 10000);
@@ -16,7 +17,7 @@ class AggregatedInsightsApp extends Homey.App {
 
 
 	getToken () {
-		return Homey.ManagerSettings.get('apiToken')
+		return Homey.ManagerSettings.get('apiToken');
 	}
 
 	getLogs () {
