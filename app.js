@@ -49,7 +49,9 @@ class AggregatedInsightsApp extends Homey.App {
 	}
 
 	refreshAvailableLogs(){
-		this.getLogs().then(logs =>	Homey.ManagerSettings.set('logs', logs.map(log => ({id:log.uri+'/'+log.name,name:log.uriObj.name+'/'+log.label.en}))));
+		this.getLogs().then(logs =>	Homey.ManagerSettings.set('logs', logs.map(log => ({id:log.uri+'/'+log.name,name:log.uriObj.name+'/'+log.label.en})))).catch(err => {
+			console.error(err);
+		});
 	}
 	  
 
@@ -176,7 +178,8 @@ class AggregatedInsightsApp extends Homey.App {
 						promise: this.getLog(log.id,start,nextEnd),
 						index: logIndex,
 						id: log.id,
-						lastValue: log.lastValue
+						lastValue: log.lastValue,
+						position: (log.position?log.position:aggregations[aggregationIndex].position)
 					});
 				});
 				Promise.all(p.map(r=>r.promise)).then(results=>{
@@ -237,7 +240,7 @@ class AggregatedInsightsApp extends Homey.App {
 							logValue = 0;
 							results.forEach((result, i) => {
 								var logItems = this.parseLog(result);
-								if(aggregation.position.toLowerCase() == 'start'){
+								if(p[i].position.toLowerCase() == 'start'){
 									if(p[i].lastValue){
 										if(logItems.length == 0){
 											logValue += p[i].lastValue * (end.valueOf() - start.valueOf());
@@ -260,7 +263,7 @@ class AggregatedInsightsApp extends Homey.App {
 											aggregations[aggregationIndex].logs[i].lastValue = logItem.value;
 										}
 									});
-								}else if(aggregation.position.toLowerCase() == 'end'){
+								}else if(p[i].position.toLowerCase() == 'end'){
 									logItems.forEach((logItem, itemIndex) => {
 										if(itemIndex == 0){
 											if(logItem.date >= end){

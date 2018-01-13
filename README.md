@@ -8,8 +8,6 @@ Allows you to create aggregations of insight logs and aggregations of aggregatio
 * average temperture: add multiple temperature logs to 1 aggregation
 
 ## Settings
-### apiToken
-The bearer token needed for accessing logs of other apps.
 ### Name
 The name of the aggregation must be unique.
 ### Label
@@ -28,7 +26,6 @@ The start date and time of the next period to be calculated
 Aggregations are made per hour, day, week, month or year
 ### Position
 Position in the period the aggregation is logged.
-Usually the same position as the insight(s) you are aggregation from.
 ### Method
 The aggregation method.
 * Sum of all values in the period
@@ -38,6 +35,8 @@ The aggregation method.
 * Max(imum) value in the period
 
 ## Versions
+* 0.0.3 support log position per aggregated log
+* 0.0.2 replaced bearertoken with apitoken
 * 0.0.1 Initial version
 
 ## Donate
