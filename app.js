@@ -9,8 +9,8 @@ class AggregatedInsightsApp extends Homey.App {
 		Homey.ManagerApi.getOwnerApiToken().then(apiToken =>{
 			Homey.ManagerSettings.set('apiToken', apiToken);
 			this.log('token:',apiToken);
+			this.refreshAvailableLogs();
 		});
-		this.refreshAvailableLogs();
 		var t = this;
  		setInterval(function(){t.calculateAggregations();}, 10000);
 	}
@@ -101,8 +101,8 @@ class AggregatedInsightsApp extends Homey.App {
 			aggregations = [];
 		}
 		this.calculating = aggregations.length;
-		this.log('calculateAggregations');
-		Homey.ManagerApi.realtime('aggregateLog', 'calculateAggregations');
+		this.log('checking '+aggregations.length+' aggregations for updates');
+		Homey.ManagerApi.realtime('aggregateLog', 'checking '+aggregations.length+' aggregations for updates');		var addAggregation = Homey.ManagerSettings.get('addAggregation');
 		var addAggregation = Homey.ManagerSettings.get('addAggregation');
 		if(addAggregation){
 			var aggregationIndex = -1;
@@ -134,12 +134,16 @@ class AggregatedInsightsApp extends Homey.App {
 			}
 			Homey.ManagerSettings.set('aggregations', aggregations);
 			Homey.ManagerSettings.set('addAggregation', null);
+			this.log('added aggregation '+ addAggregation.name);
+			Homey.ManagerApi.realtime('aggregateLog', 'added aggregation '+ addAggregation.name);
 		}
 		aggregations.forEach((aggregation, aggregationIndex, aggregations) => {
 			if(aggregation.name == Homey.ManagerSettings.get('deleteAggregation')){
 				aggregations.splice(aggregationIndex, 1);
 				Homey.ManagerSettings.set('aggregations', aggregations);
 				Homey.ManagerSettings.set('deleteAggregation',null);
+				this.log('deleted aggregation '+ aggregation.name);
+				Homey.ManagerApi.realtime('aggregateLog', 'deleted aggregation '+ aggregation.name);
 				this.calculating--;
 			}else if(aggregation.name == Homey.ManagerSettings.get('recalcAggregation') && aggregation.start){
 				Homey.ManagerInsights.getLog(aggregation.name, function(err, logs) {
@@ -303,11 +307,31 @@ class AggregatedInsightsApp extends Homey.App {
 
 								if(endItemIndex >= 0){
 									if(p[i].lastValue){
-										logValue += logItems[logItems.length-1]-p[i].lastValue;
+										logValue += logItems[logItems.length-1].value-p[i].lastValue;
 									}
 									aggregations[aggregationIndex].logs[i].lastValue = logItems[endItemIndex];
 								}
 							});
+						}else if(aggregation.method.toLowerCase() == 'median'){
+							var values = [];
+							results.forEach((result, i) => {
+								var logItems = this.parseLog(result);
+								logItems.forEach((logItem, itemIndex) => {
+									if(logItem.date >= start && logItem.date < end){
+										values.push(logItem.value);
+									}
+								});
+							});
+							if(values.length > 0){
+								values.sort();
+								if(values.length % 2 == 0){
+									logValue = (values[(values.length/2)-1] + values[(values.length/2)])/2;
+								}else{
+									logValue = values[(((values.length+1)/2)-1)];
+								}
+							}else{
+								logValue = 0;
+							}
 						}
 						if(logValue !== null){
 							var logDate = start;
@@ -414,21 +438,6 @@ class AggregatedInsightsApp extends Homey.App {
 		return newDate;
 	  }
 
-/*
-								if(aggregations[aggregationIndex].period.toLowerCase() == 'hour'){
-									newDate.setMinutes(newDate.getMinutes() + 10);
-								}else if(aggregations[aggregationIndex].period.toLowerCase() == 'day'){
-									newDate.setHours(newDate.getHours() + 1);
-								}else if(aggregations[aggregationIndex].period.toLowerCase() == 'week'){
-									newDate.setDate(newDate.getDate() + 1);
-								}else if(aggregations[aggregationIndex].period.toLowerCase() == 'month'){
-									newDate.setDate(newDate.getDate() + 1);
-								}else if(aggregations[aggregationIndex].period.toLowerCase() == 'year'){
-									newDate.setDate(newDate.getDate() + 7);
-								}else{
-									newDate.setMinutes(newDate.getMinutes() + 10);
-								}
-*/
 	  getPeriodStart(date, periodName){
 		var oldDate = new Date(date);
 		if(periodName.toLowerCase() == 'hour'){

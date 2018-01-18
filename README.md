@@ -36,6 +36,7 @@ The aggregation method.
 * Max(imum) value in the period
 
 ## Versions
+* 0.0.5 display date and time in local format, fix bug not getting logs on first start, add median aggregation 
 * 0.0.4 more user feedback on settings page
 * 0.0.3 support log position per aggregated log
 * 0.0.2 replaced bearertoken with apitoken
