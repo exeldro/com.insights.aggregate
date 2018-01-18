@@ -1,6 +1,7 @@
 # Aggregated Insights
 
 Allows you to create aggregations of insight logs and aggregations of aggregations.
+The app needs permissions to get the logs from other apps.
 
 ## Examples
 * count of door open event: sum a door open boolean log
@@ -35,6 +36,7 @@ The aggregation method.
 * Max(imum) value in the period
 
 ## Versions
+* 0.0.4 more user feedback on settings page
 * 0.0.3 support log position per aggregated log
 * 0.0.2 replaced bearertoken with apitoken
 * 0.0.1 Initial version

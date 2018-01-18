@@ -34,7 +34,8 @@
             <td><button id="add" name="add" onclick='addAggregation()'>Add</button></td>
           </tr>
         </table>
-        
+        <h3>Realtime action log</h3>
+        <div id="aggregateLog">No log</div>
 
         <script type="text/javascript">
     var h;
@@ -51,6 +52,8 @@
             option.value = log.id;
             select.add(option, 0);
           });
+        }else{
+          Homey.alert('No logs found yet. Please refresh this page or restart the app to see the logs.');
         }
       });
       Homey.get('aggregations', function(err, agg) {
@@ -61,7 +64,9 @@
           aggregations = [];
         }
       });
-
+      Homey.on('aggregateLog', log => {
+        document.getElementById("aggregateLog").innerHTML = new Date() +" "+log;
+      });
     }
     function addAggregationToTable(aggregation){
       var table = document.getElementById("aggregationTable");

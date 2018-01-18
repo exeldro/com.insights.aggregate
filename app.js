@@ -49,7 +49,11 @@ class AggregatedInsightsApp extends Homey.App {
 	}
 
 	refreshAvailableLogs(){
-		this.getLogs().then(logs =>	Homey.ManagerSettings.set('logs', logs.map(log => ({id:log.uri+'/'+log.name,name:log.uriObj.name+'/'+log.label.en})))).catch(err => {
+		this.getLogs().then(logs =>	{
+			var logMap = logs.map(log => ({id:log.uri+'/'+log.name,name:(log.uriObj.name?log.uriObj.name:log.uri)+'/'+log.label.en}));
+			Homey.ManagerSettings.set('logs', logMap);
+			//console.log(logs);
+		}).catch(err => {
 			console.error(err);
 		});
 	}
@@ -90,6 +94,7 @@ class AggregatedInsightsApp extends Homey.App {
 		var aggregations = this.getAggregations();
 		if(this.calculating){
 			this.log('Waiting for '+this.calculating+' calculations to finish.');
+			Homey.ManagerApi.realtime('aggregateLog', 'Waiting for '+this.calculating+' calculations to finish.');
 			return;
 		}
 		if(!aggregations){
@@ -97,6 +102,7 @@ class AggregatedInsightsApp extends Homey.App {
 		}
 		this.calculating = aggregations.length;
 		this.log('calculateAggregations');
+		Homey.ManagerApi.realtime('aggregateLog', 'calculateAggregations');
 		var addAggregation = Homey.ManagerSettings.get('addAggregation');
 		if(addAggregation){
 			var aggregationIndex = -1;
@@ -199,6 +205,7 @@ class AggregatedInsightsApp extends Homey.App {
 					});
 					if(!allLogsComplete){
 						this.log("missing logs for "+aggregations[aggregationIndex].name);
+						Homey.ManagerApi.realtime('aggregateLog', "missing logs for "+aggregations[aggregationIndex].name);
 						if(nextEnd < new Date()){
 							if(this.addPeriod(nextEnd, aggregation.period) < new Date()){
 								aggregations[aggregationIndex].nextEnd = this.addPeriod(nextEnd, aggregation.period);
@@ -312,6 +319,7 @@ class AggregatedInsightsApp extends Homey.App {
 								logDate = end;
 							}
 							this.log(aggregation.name+" log value:"+logValue+" "+logDate);
+							Homey.ManagerApi.realtime('aggregateLog', aggregation.name+" log value:"+logValue+" "+logDate);
 							//aggregation.name
 							Homey.ManagerInsights.getLog(aggregation.name, function(err, logs) {
 								if (err !== null) {
