@@ -34,6 +34,7 @@ The aggregation method.
 * Difference between the previous last value and the last value of the period
 * Min(imum) value in the period
 * Max(imum) value in the period
+* Median value in the period
 
 ## Versions
 * 0.0.6 fix difference aggregation, add 2 flow triggers

@@ -216,20 +216,24 @@ class AggregatedInsightsApp extends Homey.App {
 						});
 						if(!logComplete){
 							allLogsComplete = false;
-							if(nextEnd == this.addPeriodNextLog(end, aggregation.period)){
-								//first time not complete
-								let notUptodateTrigger = new Homey.FlowCardTrigger('not_uptodate');
-								notUptodateTrigger.register().trigger({'name': aggregations[aggregationIndex].name}).catch( this.error ).then();
-							}
 						}
 					});
 					if(!allLogsComplete){
-						this.log("missing logs for "+aggregations[aggregationIndex].name);
-						Homey.ManagerApi.realtime('aggregateLog', "missing logs for "+aggregations[aggregationIndex].name);
+						if(nextEnd == this.addPeriodNextLog(end, aggregation.period)){
+							//first time not complete
+							this.log("first time missing logs for "+aggregations[aggregationIndex].name);
+							Homey.ManagerApi.realtime('aggregateLog', "first time missing logs for "+aggregations[aggregationIndex].name);
+
+							let notUptodateTrigger = new Homey.FlowCardTrigger('not_uptodate');
+							notUptodateTrigger.register().trigger({'name': aggregations[aggregationIndex].name}).catch( this.error ).then();
+						}else{
+							this.log("missing logs for "+aggregations[aggregationIndex].name);
+							Homey.ManagerApi.realtime('aggregateLog', "missing logs for "+aggregations[aggregationIndex].name);
+						}
 						if(nextEnd < new Date()){
 							if(this.addPeriod(nextEnd, aggregation.period) < new Date()){
 								aggregations[aggregationIndex].nextEnd = this.addPeriod(nextEnd, aggregation.period);
-								this.log("added period");
+								this.log("added period to "+nextEnd);
 							}else{
 								aggregations[aggregationIndex].nextEnd = this.addPeriodNextLog(nextEnd, aggregation.period);
 								this.log("added nextlog period to " + nextEnd);
@@ -342,7 +346,7 @@ class AggregatedInsightsApp extends Homey.App {
 								});
 							});
 							if(values.length > 0){
-								values.sort();
+								values.sort(function(a, b){return a-b});
 								if(values.length % 2 == 0){
 									logValue = (values[(values.length/2)-1] + values[(values.length/2)])/2;
 								}else{
