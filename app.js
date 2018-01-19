@@ -143,6 +143,17 @@ class AggregatedInsightsApp extends Homey.App {
 				Homey.ManagerSettings.set('aggregations', aggregations);
 				Homey.ManagerSettings.set('deleteAggregation',null);
 				this.log('deleted aggregation '+ aggregation.name);
+				Homey.ManagerInsights.getLog(aggregation.name, function(err, logs) {
+					if (err) {
+					}else{
+						Homey.ManagerInsights.deleteLog(logs, function callback(err, logs) {
+							if (err) {
+								console.error(err);
+							}else{
+							}
+						});
+					}
+				});
 				Homey.ManagerApi.realtime('aggregateLog', 'deleted aggregation '+ aggregation.name);
 				this.calculating--;
 			}else if(aggregation.name == Homey.ManagerSettings.get('recalcAggregation') && aggregation.start){
@@ -205,6 +216,11 @@ class AggregatedInsightsApp extends Homey.App {
 						});
 						if(!logComplete){
 							allLogsComplete = false;
+							if(nextEnd == this.addPeriodNextLog(end, aggregation.period)){
+								//first time not complete
+								let notUptodateTrigger = new Homey.FlowCardTrigger('not_uptodate');
+								notUptodateTrigger.register().trigger({'name': aggregations[aggregationIndex].name}).catch( this.error ).then();
+							}
 						}
 					});
 					if(!allLogsComplete){
@@ -213,8 +229,10 @@ class AggregatedInsightsApp extends Homey.App {
 						if(nextEnd < new Date()){
 							if(this.addPeriod(nextEnd, aggregation.period) < new Date()){
 								aggregations[aggregationIndex].nextEnd = this.addPeriod(nextEnd, aggregation.period);
+								this.log("added period");
 							}else{
 								aggregations[aggregationIndex].nextEnd = this.addPeriodNextLog(nextEnd, aggregation.period);
+								this.log("added nextlog period to " + nextEnd);
 							}
 						}
 					}else{
@@ -306,10 +324,11 @@ class AggregatedInsightsApp extends Homey.App {
 								});
 
 								if(endItemIndex >= 0){
-									if(p[i].lastValue){
-										logValue += logItems[logItems.length-1].value-p[i].lastValue;
+									if(!isNaN(p[i].lastValue)){
+										logValue += logItems[endItemIndex].value-p[i].lastValue;
 									}
-									aggregations[aggregationIndex].logs[i].lastValue = logItems[endItemIndex];
+
+									aggregations[aggregationIndex].logs[i].lastValue = logItems[endItemIndex].value;
 								}
 							});
 						}else if(aggregation.method.toLowerCase() == 'median'){
@@ -344,7 +363,6 @@ class AggregatedInsightsApp extends Homey.App {
 							}
 							this.log(aggregation.name+" log value:"+logValue+" "+logDate);
 							Homey.ManagerApi.realtime('aggregateLog', aggregation.name+" log value:"+logValue+" "+logDate);
-							//aggregation.name
 							Homey.ManagerInsights.getLog(aggregation.name, function(err, logs) {
 								if (err !== null) {
 									Homey.ManagerInsights.createLog(
@@ -370,6 +388,13 @@ class AggregatedInsightsApp extends Homey.App {
 									});
 								}
 							});
+							let newAggregationTrigger = new Homey.FlowCardTrigger('new_aggregation_value');
+							let tokens = {
+								'name': aggregation.name,
+								'value': logValue,
+								'date': logDate.toISOString()
+							};
+							newAggregationTrigger.register().trigger(tokens).catch( this.error ).then();
 						}
 						aggregations[aggregationIndex].next = end;
 						if(nextEnd > this.addPeriod(end, aggregation.period)){

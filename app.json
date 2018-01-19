@@ -9,7 +9,7 @@
     },
     "images": { "large": "assets/images/large.png", "small": "assets/images/small.png" },
     "category": "tools",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "compatibility": ">=1.5.0",
     "author": {
         "name": "Bas van Meel",
@@ -35,5 +35,57 @@
     },
     "permissions": [
         "homey:manager:api"
-    ]
+    ],
+    "flow": {
+        "triggers": [
+            {
+                "id": "new_aggregation_value",
+                "title": {
+                    "en": "New aggregation value"
+                },
+                "tokens": [
+                    {
+                        "name": "name",
+                        "type": "string",
+                        "title": {
+                            "en": "Name"
+                        },
+                        "example": "AvgPerHour"
+                    },                
+                    {
+                        "name": "value",
+                        "type": "number",
+                        "title": {
+                            "en": "Value"
+                        },
+                        "example": 1
+                    },
+                    {
+                        "name": "uptodate",
+                        "type": "boolean",
+                        "title": {
+                            "en": "Uptodate"
+                        },
+                        "example": true
+                    }
+                ]
+            },
+            {
+                "id": "not_uptodate",
+                "title": {
+                    "en": "Not uptodate"
+                },
+                "tokens": [
+                    {
+                        "name": "name",
+                        "type": "string",
+                        "title": {
+                            "en": "Name"
+                        },
+                        "example": "AvgPerHour"
+                    }
+                ]
+            }
+        ]
+    }
 }
