@@ -6,13 +6,74 @@ class AggregatedInsightsApp extends Homey.App {
 	onInit() {
 		
 		this.log('AggregatedInsightsApp is running...');
+		this.timer = null;
+		this.calculating = false;
 		Homey.ManagerApi.getOwnerApiToken().then(apiToken =>{
 			Homey.ManagerSettings.set('apiToken', apiToken);
 			this.log('token:',apiToken);
 			this.refreshAvailableLogs();
+			this.calculateAggregations();
 		});
+
+		
+		let calcAction = new Homey.FlowCardAction('calc');
+		calcAction.register().registerRunListener(( args, state ) => {
+			this.calculateAggregations();
+		});
+		let recalcAction = new Homey.FlowCardAction('recalcAggregation');
+		recalcAction.register().registerRunListener(( args, state ) => {
+			this.recalcAggregation(args.name);
+		});
+		Homey.ManagerSettings.on('set', setting =>{
+			if(setting == 'recalcAggregation'){
+				this.recalcAggregation(Homey.ManagerSettings.get('recalcAggregation'));			
+			}else if(setting == 'addAggregation'){
+				this.calculateAggregations();
+			}else if(setting == 'deleteAggregation'){
+				this.calculateAggregations();
+			}
+		});
+	}
+
+	recalcAggregation(aggregationName){
 		var t = this;
- 		setInterval(function(){t.calculateAggregations();}, 10000);
+		if(this.calculating){
+			//try again in 10 seconds
+			this.log('retry recalc in 10 seconds');
+			setTimeout(function(){t.recalcAggregation(aggregationName);}, 10000);
+			return;
+		}
+		if(this.timer !== null){
+			clearTimeout(this.timer);
+			this.timer = null;
+		}
+		this.log('recalc ' +aggregationName);
+		var aggregations = this.getAggregations();
+		aggregations.forEach((aggregation, aggregationIndex, aggregations) => {
+			if(aggregation.name == aggregationName){
+				Homey.ManagerInsights.getLog(aggregation.name, function(err, logs) {
+					if (err) {
+						aggregations[aggregationIndex].next = aggregations[aggregationIndex].start;
+						aggregations[aggregationIndex].nextEnd = null;
+						Homey.ManagerSettings.set('aggregations', aggregations);
+						Homey.ManagerSettings.unset('recalcAggregation');
+						t.calculateAggregations();
+					}else{
+						Homey.ManagerInsights.deleteLog(logs, function callback(err, logs) {
+							if (err) {
+								console.error(err);
+							}else{
+								aggregations[aggregationIndex].next = aggregations[aggregationIndex].start;
+								aggregations[aggregationIndex].nextEnd = null;
+								Homey.ManagerSettings.set('aggregations', aggregations);
+								Homey.ManagerSettings.unset('recalcAggregation');
+								t.calculateAggregations();
+							}
+						});
+					}
+				});
+			}
+		});
 	}
 
 
@@ -90,19 +151,23 @@ class AggregatedInsightsApp extends Homey.App {
 		}
 		return http['get'](options)
 	  }
+
 	  calculateAggregations(){
-		var aggregations = this.getAggregations();
+		if(this.timer !== null){
+			clearTimeout(this.timer);
+			this.timer = null;
+		}
 		if(this.calculating){
-			this.log('Waiting for '+this.calculating+' calculations to finish.');
-			Homey.ManagerApi.realtime('aggregateLog', 'Waiting for '+this.calculating+' calculations to finish.');
 			return;
 		}
+		this.calculating = true;
+
+		var aggregations = this.getAggregations();
 		if(!aggregations){
 			aggregations = [];
 		}
-		this.calculating = aggregations.length;
 		this.log('checking '+aggregations.length+' aggregations for updates');
-		Homey.ManagerApi.realtime('aggregateLog', 'checking '+aggregations.length+' aggregations for updates');		var addAggregation = Homey.ManagerSettings.get('addAggregation');
+		Homey.ManagerApi.realtime('aggregateLog', 'checking '+aggregations.length+' aggregations for updates');
 		var addAggregation = Homey.ManagerSettings.get('addAggregation');
 		if(addAggregation){
 			var aggregationIndex = -1;
@@ -113,7 +178,6 @@ class AggregatedInsightsApp extends Homey.App {
 			});
 			if(aggregationIndex == -1){
 				aggregations.push(addAggregation);
-				this.calculating++;
 			}else{
 				aggregations[aggregationIndex].label = addAggregation.label;
 				aggregations[aggregationIndex].units = addAggregation.units;
@@ -133,15 +197,15 @@ class AggregatedInsightsApp extends Homey.App {
 				});
 			}
 			Homey.ManagerSettings.set('aggregations', aggregations);
-			Homey.ManagerSettings.set('addAggregation', null);
+			Homey.ManagerSettings.unset('addAggregation');
 			this.log('added aggregation '+ addAggregation.name);
 			Homey.ManagerApi.realtime('aggregateLog', 'added aggregation '+ addAggregation.name);
 		}
-		aggregations.forEach((aggregation, aggregationIndex, aggregations) => {
+		Promise.all(aggregations.map((aggregation, aggregationIndex, aggregations) => {
 			if(aggregation.name == Homey.ManagerSettings.get('deleteAggregation')){
 				aggregations.splice(aggregationIndex, 1);
 				Homey.ManagerSettings.set('aggregations', aggregations);
-				Homey.ManagerSettings.set('deleteAggregation',null);
+				Homey.ManagerSettings.unset('deleteAggregation',null);
 				this.log('deleted aggregation '+ aggregation.name);
 				Homey.ManagerInsights.getLog(aggregation.name, function(err, logs) {
 					if (err) {
@@ -155,28 +219,6 @@ class AggregatedInsightsApp extends Homey.App {
 					}
 				});
 				Homey.ManagerApi.realtime('aggregateLog', 'deleted aggregation '+ aggregation.name);
-				this.calculating--;
-			}else if(aggregation.name == Homey.ManagerSettings.get('recalcAggregation') && aggregation.start){
-				Homey.ManagerInsights.getLog(aggregation.name, function(err, logs) {
-					if (err) {
-						aggregations[aggregationIndex].next = aggregations[aggregationIndex].start;
-						aggregations[aggregationIndex].nextEnd = null;
-						Homey.ManagerSettings.set('aggregations', aggregations);
-						Homey.ManagerSettings.set('recalcAggregation',null);
-					}else{
-						Homey.ManagerInsights.deleteLog(logs, function callback(err, logs) {
-							if (err) {
-								console.error(err);
-							}else{
-								aggregations[aggregationIndex].next = aggregations[aggregationIndex].start;
-								aggregations[aggregationIndex].nextEnd = null;
-								Homey.ManagerSettings.set('aggregations', aggregations);
-								Homey.ManagerSettings.set('recalcAggregation',null);
-							}
-						});
-					}
-				});
-				this.calculating--;	
 			}else if((!aggregation.next || this.addPeriod(aggregation.next, aggregation.period) < new Date()) && (!aggregation.nextEnd || new Date(aggregation.nextEnd) < new Date())){
 				var start;
 				if(aggregation.next){
@@ -203,7 +245,7 @@ class AggregatedInsightsApp extends Homey.App {
 						position: (log.position?log.position:aggregations[aggregationIndex].position)
 					});
 				});
-				Promise.all(p.map(r=>r.promise)).then(results=>{
+				return Promise.all(p.map(r=>r.promise)).then(results=>{
 					//this.log('got all logs');
 					var allLogsComplete = true;
 					while(allLogsComplete && end <= nextEnd){
@@ -220,18 +262,15 @@ class AggregatedInsightsApp extends Homey.App {
 							}
 						});
 						if(!allLogsComplete){
-							if(nextEnd == this.addPeriodNextLog(end, aggregation.period)){
-								//first time not complete
-								this.log("first time missing logs for "+aggregations[aggregationIndex].name);
-								Homey.ManagerApi.realtime('aggregateLog', "first time missing logs for "+aggregations[aggregationIndex].name);
-
-								let notUptodateTrigger = new Homey.FlowCardTrigger('not_uptodate');
-								notUptodateTrigger.register().trigger({'name': aggregations[aggregationIndex].name}).catch( this.error ).then();
-							}else{
-								this.log("missing logs for "+aggregations[aggregationIndex].name);
-								Homey.ManagerApi.realtime('aggregateLog', "missing logs for "+aggregations[aggregationIndex].name);
-							}
 							if(nextEnd < new Date()){
+								if(nextEnd == this.addPeriodNextLog(end, aggregation.period)){
+									//first time not complete
+									this.log("first time missing logs for "+aggregations[aggregationIndex].name);
+									Homey.ManagerApi.realtime('aggregateLog', "first time missing logs for "+aggregations[aggregationIndex].name);
+	
+									let notUptodateTrigger = new Homey.FlowCardTrigger('not_uptodate');
+									notUptodateTrigger.register().trigger({'name': aggregations[aggregationIndex].name}).catch( this.error ).then();
+								}
 								if(this.addPeriod(nextEnd, aggregation.period) < new Date()){
 									aggregations[aggregationIndex].nextEnd = this.addPeriod(nextEnd, aggregation.period);
 									this.log("added period to "+nextEnd);
@@ -418,15 +457,44 @@ class AggregatedInsightsApp extends Homey.App {
 							Homey.ManagerSettings.set('aggregations', aggregations);
 						}
 					}
-					this.calculating--;
-				}).catch(err => {
-					this.log(err);
-					this.calculating = 0;
 				});
 			}else{
-				this.calculating--;
 				//this.log("skip " + aggregation.name+" next "+new Date(aggregation.next));
 			}
+			return new Promise((resolve, reject) => {
+				resolve();
+			});
+		  })).then(result => {
+			var timeout = null;
+			var timeoutlog = null;
+			aggregations.forEach(aggregation => {
+				var aggtimeout = null;
+				if(aggregation.nextEnd < new Date()){
+					aggtimeout = 100;
+				}else {
+					aggtimeout = (new Date(aggregation.nextEnd)).valueOf()- (new Date()).valueOf();
+				}
+				if(timeout === null || timeout > aggtimeout){
+					timeout = aggtimeout;
+					timeoutlog = aggregation.name;
+				}
+			});
+			if(timeout!==null){
+				this.log("timeout "+ (timeout/60000) +" minutes for "+timeoutlog);
+				Homey.ManagerApi.realtime('aggregateLog',"wait "+ (timeout/60000) +" minutes checking for "+timeoutlog);
+				var t = this;
+				this.timer = setTimeout(function(){t.calculateAggregations();}, timeout);
+				this.calculating = false;
+			}else{
+				this.log("no aggregation to calculate");
+				Homey.ManagerApi.realtime('aggregateLog',"no aggregation to calculate");
+			}
+		  }).catch(err => {
+			  console.error(err);
+			  Homey.ManagerApi.realtime('aggregateLog',"error during calculating aggregation retrying in 1 minute");
+			  var t = this;
+			  this.timer = setTimeout(function(){t.calculateAggregations();}, 60000);
+			  this.calculating = false;
 		  });
 	  }
 

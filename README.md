@@ -37,6 +37,7 @@ The aggregation method.
 * Median value in the period
 
 ## Versions
+* 0.1.0 use events and promises instead of polling every 10 seconds
 * 0.0.6 fix difference aggregation, add 2 flow triggers
 * 0.0.5 display date and time in local format, fix bug not getting logs on first start, add median aggregation 
 * 0.0.4 more user feedback on settings page

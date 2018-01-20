@@ -9,7 +9,7 @@
     },
     "images": { "large": "assets/images/large.png", "small": "assets/images/small.png" },
     "category": "tools",
-    "version": "0.0.6",
+    "version": "0.1.0",
     "compatibility": ">=1.5.0",
     "author": {
         "name": "Bas van Meel",
@@ -83,6 +83,29 @@
                             "en": "Name"
                         },
                         "example": "AvgPerHour"
+                    }
+                ]
+            }
+        ],
+        "actions": [
+            {
+                "id": "calc",
+                "title": {
+                    "en": "Check aggregations for updates"
+                }
+            },
+            {
+                "id": "recalcAggregation",
+                "title": {
+                    "en": "Recalculate"
+                },
+                "args": [
+                    {
+                        "type": "text",
+                        "name": "name",
+                        "placeholder": {
+                            "en": "Aggregation name"
+                        }
                     }
                 ]
             }
