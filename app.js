@@ -206,212 +206,218 @@ class AggregatedInsightsApp extends Homey.App {
 				Promise.all(p.map(r=>r.promise)).then(results=>{
 					//this.log('got all logs');
 					var allLogsComplete = true;
-					results.forEach((result, i) => {
-						var logItems = this.parseLog(result);
-						var logComplete = false;
-						logItems.forEach((logItem, itemIndex) => {
-							if(logItem.date >= end){
-								logComplete = true;
+					while(allLogsComplete && end <= nextEnd){
+						results.forEach((result, i) => {
+							var logItems = this.parseLog(result);
+							var logComplete = false;
+							logItems.forEach((logItem, itemIndex) => {
+								if(logItem.date >= end){
+									logComplete = true;
+								}
+							});
+							if(!logComplete){
+								allLogsComplete = false;
 							}
 						});
-						if(!logComplete){
-							allLogsComplete = false;
-						}
-					});
-					if(!allLogsComplete){
-						if(nextEnd == this.addPeriodNextLog(end, aggregation.period)){
-							//first time not complete
-							this.log("first time missing logs for "+aggregations[aggregationIndex].name);
-							Homey.ManagerApi.realtime('aggregateLog', "first time missing logs for "+aggregations[aggregationIndex].name);
+						if(!allLogsComplete){
+							if(nextEnd == this.addPeriodNextLog(end, aggregation.period)){
+								//first time not complete
+								this.log("first time missing logs for "+aggregations[aggregationIndex].name);
+								Homey.ManagerApi.realtime('aggregateLog', "first time missing logs for "+aggregations[aggregationIndex].name);
 
-							let notUptodateTrigger = new Homey.FlowCardTrigger('not_uptodate');
-							notUptodateTrigger.register().trigger({'name': aggregations[aggregationIndex].name}).catch( this.error ).then();
-						}else{
-							this.log("missing logs for "+aggregations[aggregationIndex].name);
-							Homey.ManagerApi.realtime('aggregateLog', "missing logs for "+aggregations[aggregationIndex].name);
-						}
-						if(nextEnd < new Date()){
-							if(this.addPeriod(nextEnd, aggregation.period) < new Date()){
-								aggregations[aggregationIndex].nextEnd = this.addPeriod(nextEnd, aggregation.period);
-								this.log("added period to "+nextEnd);
+								let notUptodateTrigger = new Homey.FlowCardTrigger('not_uptodate');
+								notUptodateTrigger.register().trigger({'name': aggregations[aggregationIndex].name}).catch( this.error ).then();
 							}else{
-								aggregations[aggregationIndex].nextEnd = this.addPeriodNextLog(nextEnd, aggregation.period);
-								this.log("added nextlog period to " + nextEnd);
+								this.log("missing logs for "+aggregations[aggregationIndex].name);
+								Homey.ManagerApi.realtime('aggregateLog', "missing logs for "+aggregations[aggregationIndex].name);
 							}
-						}
-					}else{
-						var logValue = null;
-						if(aggregation.method.toLowerCase() == 'sum'){
-							logValue = 0;
-							results.forEach((result, i) => {
-								this.parseLog(result).forEach(logItem => {
-									if(logItem.date >= start && logItem.date < end){
-										logValue += logItem.value;
-										aggregations[aggregationIndex].logs[i].lastValue = logItem.value;
-									}
-								});
-							});
-						}else if(aggregation.method.toLowerCase() == 'min'){
-							results.forEach((result, i) => {
-								this.parseLog(result).forEach(logItem => {
-									if(logItem.date >= start && logItem.date < end && (logValue === null || logItem.value < logValue)){
-										logValue = logItem.value;
-										aggregations[aggregationIndex].logs[i].lastValue = logItem.value;
-									}
-								});
-							});
-						}else if(aggregation.method.toLowerCase() == 'max'){
-							results.forEach((result, i) => {
-								this.parseLog(result).forEach(logItem => {
-									if(logItem.date >= start && logItem.date < end && (logValue === null || logItem.value > logValue)){
-										logValue = logItem.value;
-										aggregations[aggregationIndex].logs[i].lastValue = logItem.value;
-									}
-								});
-							});
-						}else if(aggregation.method.toLowerCase() == 'avarage'){
-							logValue = 0;
-							results.forEach((result, i) => {
-								var logItems = this.parseLog(result);
-								if(p[i].position.toLowerCase() == 'start'){
-									if(p[i].lastValue){
-										if(logItems.length == 0){
-											logValue += p[i].lastValue * (end.valueOf() - start.valueOf());
-										}else if(logItems[0].date > start){
-											if(logItems[0].date >= end){
-												logValue += p[i].lastValue * (end.valueOf() - start.valueOf());
-											}else{
-												logValue += p[i].lastValue * (logItems[0].date.valueOf() - start.valueOf());
-											}
-										}
-									}
-									logItems.forEach((logItem, itemIndex) => {
+							if(nextEnd < new Date()){
+								if(this.addPeriod(nextEnd, aggregation.period) < new Date()){
+									aggregations[aggregationIndex].nextEnd = this.addPeriod(nextEnd, aggregation.period);
+									this.log("added period to "+nextEnd);
+								}else{
+									aggregations[aggregationIndex].nextEnd = this.addPeriodNextLog(nextEnd, aggregation.period);
+									this.log("added nextlog period to " + nextEnd);
+								}
+								Homey.ManagerSettings.set('aggregations', aggregations);
+							}
+						}else{
+							var logValue = null;
+							if(aggregation.method.toLowerCase() == 'sum'){
+								logValue = 0;
+								results.forEach((result, i) => {
+									this.parseLog(result).forEach(logItem => {
 										if(logItem.date >= start && logItem.date < end){
-											if(itemIndex == logItems.length-1 || logItems[itemIndex+1].date >= end){
-												// last item
-												logValue += logItem.value * (end.valueOf() - logItem.date.valueOf());
-											}else{
-												logValue += logItem.value * (logItems[itemIndex+1].date.valueOf() - logItem.date.valueOf());
-											}
+											logValue += logItem.value;
 											aggregations[aggregationIndex].logs[i].lastValue = logItem.value;
 										}
 									});
-								}else if(p[i].position.toLowerCase() == 'end'){
-									logItems.forEach((logItem, itemIndex) => {
-										if(itemIndex == 0){
-											if(logItem.date >= end){
-												logValue += logItem.value * (end.valueOf()-start.valueOf());
-											}else{
-												logValue += logItem.value * (logItem.date.valueOf()-start.valueOf());
-											}
-										}else{
-											if(logItem.date >= end){
-												logValue += logItem.value * (end.valueOf() - logItems[itemIndex-1].date.valueOf()) ;
-											}else{
-												logValue += logItem.value * (logItem.date.valueOf() - logItems[itemIndex-1].date.valueOf());
-											}
+								});
+							}else if(aggregation.method.toLowerCase() == 'min'){
+								results.forEach((result, i) => {
+									this.parseLog(result).forEach(logItem => {
+										if(logItem.date >= start && logItem.date < end && (logValue === null || logItem.value < logValue)){
+											logValue = logItem.value;
+											aggregations[aggregationIndex].logs[i].lastValue = logItem.value;
 										}
 									});
-								}
-							});
-							logValue /= results.length;
-							logValue /= (end.valueOf() - start.valueOf());
-						}else if(aggregation.method.toLowerCase() == 'difference'){
-							logValue = 0;
-							results.forEach((result, i) => {
-								var logItems = this.parseLog(result);
-								var endItemIndex = -1;
-								logItems.forEach((logItem, itemIndex) => {
-									if(logItem.date >= start && logItem.date < end){
-										endItemIndex = itemIndex;
-									}
 								});
-
-								if(endItemIndex >= 0){
-									if(!isNaN(p[i].lastValue)){
-										logValue += logItems[endItemIndex].value-p[i].lastValue;
-									}
-
-									aggregations[aggregationIndex].logs[i].lastValue = logItems[endItemIndex].value;
-								}
-							});
-						}else if(aggregation.method.toLowerCase() == 'median'){
-							var values = [];
-							results.forEach((result, i) => {
-								var logItems = this.parseLog(result);
-								logItems.forEach((logItem, itemIndex) => {
-									if(logItem.date >= start && logItem.date < end){
-										values.push(logItem.value);
-									}
+							}else if(aggregation.method.toLowerCase() == 'max'){
+								results.forEach((result, i) => {
+									this.parseLog(result).forEach(logItem => {
+										if(logItem.date >= start && logItem.date < end && (logValue === null || logItem.value > logValue)){
+											logValue = logItem.value;
+											aggregations[aggregationIndex].logs[i].lastValue = logItem.value;
+										}
+									});
 								});
-							});
-							if(values.length > 0){
-								values.sort(function(a, b){return a-b});
-								if(values.length % 2 == 0){
-									logValue = (values[(values.length/2)-1] + values[(values.length/2)])/2;
-								}else{
-									logValue = values[(((values.length+1)/2)-1)];
-								}
-							}else{
+							}else if(aggregation.method.toLowerCase() == 'avarage'){
 								logValue = 0;
-							}
-						}
-						if(logValue !== null){
-							var logDate = start;
-							if(aggregation.position.toLowerCase() == 'start'){
-								logDate = start;
-							}else if(aggregation.position.toLowerCase() == 'middle'){
-								logDate = new Date((start.valueOf()+end.valueOf())/2);
-							}else if(aggregation.position.toLowerCase() == 'end'){
-								logDate = end;
-							}
-							this.log(aggregation.name+" log value:"+logValue+" "+logDate);
-							Homey.ManagerApi.realtime('aggregateLog', aggregation.name+" log value:"+logValue+" "+logDate);
-							Homey.ManagerInsights.getLog(aggregation.name, function(err, logs) {
-								if (err !== null) {
-									Homey.ManagerInsights.createLog(
-										aggregation.name, {
-										label: {
-											en: aggregation.label
-										},
-										type: 'number',
-										decimals: aggregation.decimals,
-										units: aggregation.units
-									}, function callback(err, logs) {
-										if (err) {
-											console.error(err);
-										}else{
-											logs.createEntry( logValue, logDate, function(err, success) {
-												if (err) console.error(err);
-											});
+								results.forEach((result, i) => {
+									var logItems = this.parseLog(result);
+									if(p[i].position.toLowerCase() == 'start'){
+										if(p[i].lastValue){
+											if(logItems.length == 0){
+												logValue += p[i].lastValue * (end.valueOf() - start.valueOf());
+											}else if(logItems[0].date > start){
+												if(logItems[0].date >= end){
+													logValue += p[i].lastValue * (end.valueOf() - start.valueOf());
+												}else{
+													logValue += p[i].lastValue * (logItems[0].date.valueOf() - start.valueOf());
+												}
+											}
+										}
+										logItems.forEach((logItem, itemIndex) => {
+											if(logItem.date >= start && logItem.date < end){
+												if(itemIndex == logItems.length-1 || logItems[itemIndex+1].date >= end){
+													// last item
+													logValue += logItem.value * (end.valueOf() - logItem.date.valueOf());
+												}else{
+													logValue += logItem.value * (logItems[itemIndex+1].date.valueOf() - logItem.date.valueOf());
+												}
+												aggregations[aggregationIndex].logs[i].lastValue = logItem.value;
+											}
+										});
+									}else if(p[i].position.toLowerCase() == 'end'){
+										logItems.forEach((logItem, itemIndex) => {
+											if(itemIndex == 0){
+												if(logItem.date >= end){
+													logValue += logItem.value * (end.valueOf()-start.valueOf());
+												}else{
+													logValue += logItem.value * (logItem.date.valueOf()-start.valueOf());
+												}
+											}else{
+												if(logItem.date >= end){
+													logValue += logItem.value * (end.valueOf() - logItems[itemIndex-1].date.valueOf()) ;
+												}else{
+													logValue += logItem.value * (logItem.date.valueOf() - logItems[itemIndex-1].date.valueOf());
+												}
+											}
+										});
+									}
+								});
+								logValue /= results.length;
+								logValue /= (end.valueOf() - start.valueOf());
+							}else if(aggregation.method.toLowerCase() == 'difference'){
+								logValue = 0;
+								results.forEach((result, i) => {
+									var logItems = this.parseLog(result);
+									var endItemIndex = -1;
+									logItems.forEach((logItem, itemIndex) => {
+										if(logItem.date >= start && logItem.date < end){
+											endItemIndex = itemIndex;
 										}
 									});
-								}else{
-									logs.createEntry( logValue, logDate, function(err, success) {
-										if (err) console.error(err);
+
+									if(endItemIndex >= 0){
+										if(!isNaN(p[i].lastValue)){
+											logValue += logItems[endItemIndex].value-p[i].lastValue;
+										}
+
+										aggregations[aggregationIndex].logs[i].lastValue = logItems[endItemIndex].value;
+									}
+								});
+							}else if(aggregation.method.toLowerCase() == 'median'){
+								var values = [];
+								results.forEach((result, i) => {
+									var logItems = this.parseLog(result);
+									logItems.forEach((logItem, itemIndex) => {
+										if(logItem.date >= start && logItem.date < end){
+											values.push(logItem.value);
+										}
 									});
+								});
+								if(values.length > 0){
+									values.sort(function(a, b){return a-b});
+									if(values.length % 2 == 0){
+										logValue = (values[(values.length/2)-1] + values[(values.length/2)])/2;
+									}else{
+										logValue = values[(((values.length+1)/2)-1)];
+									}
+								}else{
+									logValue = 0;
 								}
-							});
-							let newAggregationTrigger = new Homey.FlowCardTrigger('new_aggregation_value');
-							let tokens = {
-								'name': aggregation.name,
-								'value': logValue,
-								'date': logDate.toISOString()
-							};
-							newAggregationTrigger.register().trigger(tokens).catch( this.error ).then();
-						}
-						aggregations[aggregationIndex].next = end;
-						if(nextEnd > this.addPeriod(end, aggregation.period)){
-							aggregations[aggregationIndex].nextEnd = nextEnd;
-						}else{
-							if(this.addPeriod(this.addPeriod(end, aggregation.period), aggregation.period) < new Date()){
-								aggregations[aggregationIndex].nextEnd = this.addPeriod(this.addPeriod(end, aggregation.period), aggregation.period);
-							}else{
-								aggregations[aggregationIndex].nextEnd = this.addPeriodNextLog(this.addPeriod(end, aggregation.period), aggregation.period);
 							}
+							if(logValue !== null){
+								var logDate = start;
+								if(aggregation.position.toLowerCase() == 'start'){
+									logDate = start;
+								}else if(aggregation.position.toLowerCase() == 'middle'){
+									logDate = new Date((start.valueOf()+end.valueOf())/2);
+								}else if(aggregation.position.toLowerCase() == 'end'){
+									logDate = end;
+								}
+								this.log(aggregation.name+" log value:"+logValue+" "+logDate);
+								Homey.ManagerApi.realtime('aggregateLog', aggregation.name+" log value:"+logValue+" "+logDate);
+								Homey.ManagerInsights.getLog(aggregation.name, function(err, logs) {
+									if (err !== null) {
+										Homey.ManagerInsights.createLog(
+											aggregation.name, {
+											label: {
+												en: aggregation.label
+											},
+											type: 'number',
+											decimals: aggregation.decimals,
+											units: aggregation.units
+										}, function callback(err, logs) {
+											if (err) {
+												console.error(err);
+											}else{
+												logs.createEntry( logValue, logDate, function(err, success) {
+													if (err) console.error(err);
+												});
+											}
+										});
+									}else{
+										logs.createEntry( logValue, logDate, function(err, success) {
+											if (err) console.error(err);
+										});
+									}
+								});
+								let newAggregationTrigger = new Homey.FlowCardTrigger('new_aggregation_value');
+								let tokens = {
+									'name': aggregation.name,
+									'value': logValue,
+									'uptodate' : (this.addPeriodNextLog(this.addPeriod(end, aggregation.period), aggregation.period) > new Date())
+								};
+								newAggregationTrigger.register().trigger(tokens).catch( this.error ).then();
+							}
+
+							start = end;
+							end = this.addPeriod(start, aggregation.period);
+							aggregations[aggregationIndex].next = start;
+							if(nextEnd > end){
+								aggregations[aggregationIndex].nextEnd = nextEnd;
+							}else{
+								if(this.addPeriod(end, aggregation.period) < new Date()){
+									aggregations[aggregationIndex].nextEnd = this.addPeriod(end, aggregation.period);
+								}else{
+									aggregations[aggregationIndex].nextEnd = this.addPeriodNextLog(end, aggregation.period);
+								}
+							}
+							Homey.ManagerSettings.set('aggregations', aggregations);
 						}
 					}
-					Homey.ManagerSettings.set('aggregations', aggregations);
 					this.calculating--;
 				}).catch(err => {
 					this.log(err);
