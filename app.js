@@ -14,6 +14,26 @@ class AggregatedInsightsApp extends Homey.App {
 			this.refreshAvailableLogs();
 			this.calculateAggregations();
 		});
+		Homey.ManagerInsights.getLogs().then(logs =>{
+			var aggregations = this.getAggregations();
+			logs.forEach(log => {
+				var logFound = false;
+				aggregations.forEach(aggregation =>{
+					if(aggregation.name == log.name){
+						logFound = true;
+					}
+				});
+				if(!logFound){
+					this.log('delete abandoned aggregated log ' + log.name);
+					Homey.ManagerInsights.deleteLog(log, function callback(err, logs) {
+						if (err) {
+							console.error(err);
+						}else{
+						}
+					});
+				}
+			});
+		}).catch();
 
 		
 		let calcAction = new Homey.FlowCardAction('calc');
@@ -481,7 +501,7 @@ class AggregatedInsightsApp extends Homey.App {
 			});
 			if(timeout!==null){
 				this.log("timeout "+ (timeout/60000) +" minutes for "+timeoutlog);
-				Homey.ManagerApi.realtime('aggregateLog',"wait "+ (timeout/60000) +" minutes checking for "+timeoutlog);
+				Homey.ManagerApi.realtime('aggregateLog',"wait "+ Math.round(timeout/60000) +" minutes checking for "+timeoutlog);
 				var t = this;
 				this.timer = setTimeout(function(){t.calculateAggregations();}, timeout);
 				this.calculating = false;
