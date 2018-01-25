@@ -183,9 +183,6 @@ class AggregatedInsightsApp extends Homey.App {
 		this.calculating = true;
 
 		var aggregations = this.getAggregations();
-		if(!aggregations){
-			aggregations = [];
-		}
 		this.log('checking '+aggregations.length+' aggregations for updates');
 		Homey.ManagerApi.realtime('aggregateLog', 'checking '+aggregations.length+' aggregations for updates');
 		var addAggregation = Homey.ManagerSettings.get('addAggregation');
@@ -582,7 +579,11 @@ class AggregatedInsightsApp extends Homey.App {
 	  }
 
 	  getAggregations(){
-		  return Homey.ManagerSettings.get('aggregations');
+		var aggregations = Homey.ManagerSettings.get('aggregations');
+		if(!aggregations){
+			aggregations = [];
+		}
+		return aggregations;
 	  }
 }
 
