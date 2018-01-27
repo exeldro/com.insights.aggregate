@@ -25,11 +25,8 @@ class AggregatedInsightsApp extends Homey.App {
 				});
 				if(!logFound){
 					this.log('delete abandoned aggregated log ' + log.name);
-					Homey.ManagerInsights.deleteLog(log, function callback(err, logs) {
-						if (err) {
-							console.error(err);
-						}else{
-						}
+					Homey.ManagerInsights.deleteLog(log).catch(err => {
+						console.error(err);
 					});
 				}
 			});
@@ -71,26 +68,18 @@ class AggregatedInsightsApp extends Homey.App {
 		var aggregations = this.getAggregations();
 		aggregations.forEach((aggregation, aggregationIndex, aggregations) => {
 			if(aggregation.name == aggregationName){
-				Homey.ManagerInsights.getLog(aggregation.name, function(err, logs) {
-					if (err) {
+				Homey.ManagerInsights.getLog(aggregation.name).then(logs => {
+					Homey.ManagerInsights.deleteLog(logs).then(() => {
 						aggregations[aggregationIndex].next = aggregations[aggregationIndex].start;
 						aggregations[aggregationIndex].nextEnd = null;
 						Homey.ManagerSettings.set('aggregations', aggregations);
 						Homey.ManagerSettings.unset('recalcAggregation');
 						t.calculateAggregations();
-					}else{
-						Homey.ManagerInsights.deleteLog(logs, function callback(err, logs) {
-							if (err) {
-								console.error(err);
-							}else{
-								aggregations[aggregationIndex].next = aggregations[aggregationIndex].start;
-								aggregations[aggregationIndex].nextEnd = null;
-								Homey.ManagerSettings.set('aggregations', aggregations);
-								Homey.ManagerSettings.unset('recalcAggregation');
-								t.calculateAggregations();
-							}
-						});
-					}
+					}).catch(err => {
+						console.error(err);
+					});
+				}).catch(err => {
+					console.error(err);
 				});
 			}
 		});
@@ -224,16 +213,14 @@ class AggregatedInsightsApp extends Homey.App {
 				Homey.ManagerSettings.set('aggregations', aggregations);
 				Homey.ManagerSettings.unset('deleteAggregation',null);
 				this.log('deleted aggregation '+ aggregation.name);
-				Homey.ManagerInsights.getLog(aggregation.name, function(err, logs) {
-					if (err) {
-					}else{
-						Homey.ManagerInsights.deleteLog(logs, function callback(err, logs) {
-							if (err) {
-								console.error(err);
-							}else{
-							}
-						});
-					}
+				Homey.ManagerInsights.getLog(aggregation.name).then(logs => {
+					Homey.ManagerInsights.deleteLog(logs).then(()=>{
+						this.refreshAvailableLogs();
+					}).catch(err =>{
+						console.error(err);
+					});
+				}).catch(err =>{
+					console.error(err);
 				});
 				Homey.ManagerApi.realtime('aggregateLog', 'deleted aggregation '+ aggregation.name);
 			}else if((!aggregation.next || this.addPeriod(aggregation.next, aggregation.period) < new Date()) && (!aggregation.nextEnd || new Date(aggregation.nextEnd) < new Date())){
@@ -425,8 +412,11 @@ class AggregatedInsightsApp extends Homey.App {
 								}
 								this.log(aggregation.name+" log value:"+logValue+" "+logDate);
 								Homey.ManagerApi.realtime('aggregateLog', aggregation.name+" log value:"+logValue+" "+logDate);
-								Homey.ManagerInsights.getLog(aggregation.name, function(err, logs) {
-									if (err !== null) {
+								Homey.ManagerInsights.getLog(aggregation.name).then(logs => {
+									logs.createEntry( logValue, logDate).catch( err => {
+										console.error(err);
+									});
+								}).catch(err => {
 										Homey.ManagerInsights.createLog(
 											aggregation.name, {
 											label: {
@@ -434,21 +424,13 @@ class AggregatedInsightsApp extends Homey.App {
 											},
 											type: 'number',
 											decimals: aggregation.decimals,
-											units: aggregation.units
-										}, function callback(err, logs) {
-											if (err) {
-												console.error(err);
-											}else{
-												logs.createEntry( logValue, logDate, function(err, success) {
-													if (err) console.error(err);
+											units: aggregation.units}).then(logs => {
+												this.refreshAvailableLogs();
+												logs.createEntry( logValue, logDate).catch( err => {
+													console.error(err);
 												});
-											}
-										});
-									}else{
-										logs.createEntry( logValue, logDate, function(err, success) {
-											if (err) console.error(err);
-										});
-									}
+											});
+										
 								});
 								let newAggregationTrigger = new Homey.FlowCardTrigger('new_aggregation_value');
 								let tokens = {

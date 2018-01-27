@@ -37,6 +37,7 @@ The aggregation method.
 * Median value in the period
 
 ## Versions
+* 0.1.2 refresh available logs when adding or deleting an aggregated log
 * 0.1.1 delete abandoned aggregated logs on startup
 * 0.1.0 use events and promises instead of polling every 10 seconds
 * 0.0.6 fix difference aggregation, add 2 flow triggers
